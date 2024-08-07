@@ -18,4 +18,7 @@ public static class Extentions
     public static Vector2 Vector3ToVector2XZ(Vector3 vector3) => new Vector2(vector3.x, vector3.z);
 
     public static Vector3 GetRandomPatrolPoint() => new Vector3(Random.Range(-7f, 7f), 0f, Random.Range(-7f, 7f));
+
+    public static bool IsIndexWithinBounds(int index, bool[] arr) => (index < 0 || index >= arr.Length) ? false : true;
+
 }

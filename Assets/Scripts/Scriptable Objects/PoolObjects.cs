@@ -12,7 +12,7 @@ public class PoolObjects : ScriptableObject
     {
         return new Dictionary<IPoolable, int>
         {
-            { visitor, 15 }
+            { visitor, 8 }
         };
     }
 }

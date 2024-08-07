@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
@@ -11,6 +12,7 @@ public class Exhibition : MonoBehaviour
     [Header("References")]
     [SerializeField] private Transform entryPathParent;
     [SerializeField] private Transform insidePathParent;
+    [SerializeField] private Transform waitingPoint;
 
     private readonly List<Transform> entryPath = new();
     private readonly List<Transform> insidePath = new();
@@ -31,6 +33,8 @@ public class Exhibition : MonoBehaviour
     public int exhibitionMaxEntryVisitorCount { get; private set; } = 6;
     public bool IsEntryLineFilled => entryQueue.Count == exhibitionMaxEntryVisitorCount;
 
+    public bool[] entryQueueOccupations;
+
     private int insidePathFrameLength = 0;
     private int exhibitionFrameCount = 0;
 
@@ -41,6 +45,8 @@ public class Exhibition : MonoBehaviour
 
         for (int i = 0;i < insidePathParent.childCount;i++)
             insidePath.Add(insidePathParent.GetChild(i));
+
+        entryQueueOccupations = new bool[exhibitionMaxEntryVisitorCount];
     }
 
     private void Start()
@@ -51,7 +57,6 @@ public class Exhibition : MonoBehaviour
         }
 
         CalculateInsidePathFrame();
-        
     }
 
     private void Update()
@@ -83,42 +88,20 @@ public class Exhibition : MonoBehaviour
             Visitor visitor = visitors[i];
             if (visitor.state != VisitorState.WaitingInLine)
             {
-                visitor.GetInLine(this);
+                visitor.GetInEntryPath(this);
                 AddVisitorToEntryQueue(visitor);
                 continue;
             }
-            /////////////////////////// Bunun yerine readonly transform kullanmak daha iyi geibi
-            Queue<Vector3> path = new();
-            Queue<Vector3> insidePath = new Queue<Vector3>(insidePathPositions);
-            path.Enqueue(entryPath[0].position);
-            int count = insidePath.Count;
-            for (int j = 0;j < count;j++)
-                path.Enqueue(insidePath.Dequeue());
-            visitor.SetCurrentSpeed(exhibitionSpeed);
-            visitor.SetPatrolPoints(path);
 
-            visitor.SetState(VisitorState.Visiting);
-            visitor.SetNextAction(() => { 
-                visitor.GoToQueue();
-                visitor.SetState(VisitorState.Patrol);
-                visitor.AddPatrolPoint(Extentions.GetRandomPatrolPoint());
-                visitor.SetNextAction(null);
-                visitor.SetNextCurrentPatrol();
-            });
+            visitor.GetInInsidePath(insidePath, exhibitionSpeed);
         }
 
-        //print("Basldi");
+        Array.Fill(entryQueueOccupations, false);
         SetState(ExhibitionState.Started);
     }
 
     public void EndExhibition()
     {
-        for (int i = 0;i < visitors.Count;++i)
-        {
-            visitors[i].SetCurrentSpeed(Constants.visitorMoveSpeed);
-            visitors[i].SetState(VisitorState.Patrol);
-        }
-
         visitors.Clear();
 
         SetState(ExhibitionState.Waiting);
@@ -132,18 +115,43 @@ public class Exhibition : MonoBehaviour
         entryQueue.Enqueue(newVisitor);
     }
 
-    public List<Transform> GetEntryPath() => new List<Transform>(entryPath);
+    public List<Transform> GetEntryLine() => entryPath;
+    public List<Transform> GetInsideLine() => insidePath;
 
     public void SetState(ExhibitionState newState)
     {
         state = newState;
     }
 
+    public bool GetIfEntryLineIndexIsOccupied(int index)
+    {
+        if (!Extentions.IsIndexWithinBounds(index, entryQueueOccupations))
+        {
+            Debug.LogError("Exhibition: GetIfEntryLineIndexIsOccupied, Index out of size!");
+            return false;
+        }
+
+        return entryQueueOccupations[index];
+    }
+
+
+    public void FillNextLine(int nextLineIndex, int previousLineIndex)
+    {
+        if(!Extentions.IsIndexWithinBounds(nextLineIndex, entryQueueOccupations) || !Extentions.IsIndexWithinBounds(previousLineIndex, entryQueueOccupations))
+        {
+            Debug.LogError("Exhibition: FillNextLine, Index out of size!");
+            return;
+        }
+
+        entryQueueOccupations[previousLineIndex] = false;
+        entryQueueOccupations[nextLineIndex] = true;
+    }
+
     private void CalculateInsidePathFrame()
     {
         float insidePathLength = 0;
 
-        insidePathLength += Vector2.Distance(Extentions.Vector3ToVector2XZ(insidePath[0].position), Extentions.Vector3ToVector2XZ(entryPath[^1].position));
+        insidePathLength += Vector2.Distance(Extentions.Vector3ToVector2XZ(insidePath[0].position), Extentions.Vector3ToVector2XZ(entryPath[Mathf.FloorToInt((float)entryPath.Count / 2)].position));
         for (int i = 0;i < insidePath.Count - 1;++i)
         {
             insidePathLength += Vector2.Distance(Extentions.Vector3ToVector2XZ(insidePath[i].position), Extentions.Vector3ToVector2XZ(insidePath[i + 1].position));

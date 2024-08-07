@@ -19,19 +19,24 @@ public class Visitor : MonoBehaviour, IPoolable
     PoolObjectType IPoolable.poolObjectType => PoolObjectType.Visitor;
     public VisitorState state { get; private set; } = VisitorState.Idle;
 
-    public bool isStateMoveable => state == VisitorState.Patrol || state == VisitorState.GoingToLine || state == VisitorState.Visiting;
+    //public bool isStateMoveable => state == VisitorState.Patrol || state == VisitorState.GoingToLine || state == VisitorState.Visiting || state == VisitorState.WaitingInLine;
 
     private float currentSpeed = Constants.visitorMoveSpeed;
 
 
     // Patrol
-    private Queue<Vector3> patrolPositions = new Queue<Vector3>();
     private Vector3 currentPatrolPosition = default;
     private Vector3 targetVector = default;
     private int currentMoveCount = 0, targetMoveCount = 0;
+    private bool isMoving = false;
 
     // Rotation
     private IEnumerator rotationNumerator;
+
+    // Exhibition
+    private List<Transform> exhibitionEntryPath;
+    private List<Transform> exhibitionInsidePath;
+    private int indexInExhibitionPath = 0;
 
     private Exhibition currentExhibition;
 
@@ -44,11 +49,11 @@ public class Visitor : MonoBehaviour, IPoolable
 
     void Update()
     {
-        if(isStateMoveable)
+        if(isMoving)
         {
             if (currentMoveCount >= targetMoveCount)
             {
-                SetNextCurrentPatrol();
+                SetNextTarget();
                 return;
             }
 
@@ -60,6 +65,18 @@ public class Visitor : MonoBehaviour, IPoolable
 
     public void SetState(VisitorState newState) 
     {
+
+        switch (state)
+        {
+            case VisitorState.Visiting:
+                exhibitionInsidePath = null;
+                break;
+
+            case VisitorState.WaitingInLine:
+                exhibitionEntryPath = null;
+                break;
+        }
+
         if (state == newState)
             return;
 
@@ -69,57 +86,118 @@ public class Visitor : MonoBehaviour, IPoolable
             case VisitorState.Patrol:
                 SetCurrentSpeed(Constants.visitorMoveSpeed);
                 animator.SetFloat("MoveBlend", .5f);
+                isMoving = true;
+                SetNextTarget();
                 break;
 
             case VisitorState.Idle:
                 animator.SetFloat("MoveBlend", 0f);
                 currentPatrolPosition = Vector3.zero;
                 targetVector = Vector3.zero;
+                isMoving = false;
                 break;
 
             case VisitorState.WaitingInLine:
-                animator.SetFloat("MoveBlend", 0f);
+                //animator.SetFloat("MoveBlend", 0f);
                 break;
 
             case VisitorState.Visiting:
                 animator.SetFloat("MoveBlend", Mathf.Lerp(0f, .5f, currentSpeed / Constants.visitorMoveSpeed));
+                isMoving = true;
                 break;
 
             case VisitorState.GoingToLine:
                 animator.SetFloat("MoveBlend", .5f);
+                isMoving = true;
                 break;
         }
 
         state = newState;
     }
 
-    public void GetInLine(Exhibition exhibition)
+    public void GetInEntryPath(Exhibition exhibition)
     {
-        List<Transform> entryPathList = exhibition.GetEntryPath();
-        
-        Queue<Vector3> visitorEntryPath = new();
-        for(int i = entryPathList.Count - 1;i >= exhibition.entryQueueCount;--i)
-            visitorEntryPath.Enqueue(entryPathList[i].position);
-        SetPatrolPoints(visitorEntryPath);
-
-        SetState(VisitorState.GoingToLine);
+        exhibitionEntryPath = exhibition.GetEntryLine();
+        indexInExhibitionPath = exhibitionEntryPath.Count;
         currentExhibition = exhibition;
 
-        nextAction = () => { SetState(VisitorState.WaitingInLine); };
+        SetState(VisitorState.GoingToLine);
+        SetNextTarget();
+        SetNextAction(() => { SetState(VisitorState.WaitingInLine); });
     }
 
-    public void GetNextLine()
+    public void GetInInsidePath(List<Transform> insidePath, float exhibitionSpeed)
     {
-        List<Transform> entryPathList = currentExhibition.GetEntryPath();
+        exhibitionEntryPath = null;
 
-        Queue<Vector3> visitorEntryPath = new();
-        for (int i = entryPathList.Count - 1;i >= currentExhibition.entryQueueCount;--i)
-            visitorEntryPath.Enqueue(entryPathList[i].position);
-        SetPatrolPoints(visitorEntryPath);
+        exhibitionInsidePath = insidePath;
+        indexInExhibitionPath = exhibitionInsidePath.Count;
 
-        SetState(VisitorState.GoingToLine);
+        SetCurrentSpeed(exhibitionSpeed);
+        SetState(VisitorState.Visiting);
+        SetNextTarget();
 
-        nextAction = () => { SetState(VisitorState.WaitingInLine); };
+        SetNextAction(() => {
+            GoToQueue();
+            SetNextAction(null);
+            SetState(VisitorState.Patrol);
+        });
+
+    }
+
+    public bool GetNextInPath()
+    {
+        --indexInExhibitionPath;
+
+        if(exhibitionEntryPath != null)
+        {
+            if (indexInExhibitionPath < 0 || currentExhibition.GetIfEntryLineIndexIsOccupied(indexInExhibitionPath))
+            {
+                indexInExhibitionPath = 0;
+                animator.SetFloat("MoveBlend", 0f);
+                isMoving = false;
+
+                if (nextAction != null)
+                {
+                    nextAction?.Invoke();
+                    nextAction = null;
+                }
+
+                return false;
+            }
+
+            currentExhibition.FillNextLine(indexInExhibitionPath, (currentExhibition.exhibitionMaxEntryVisitorCount == indexInExhibitionPath + 1) ? (indexInExhibitionPath) : (indexInExhibitionPath + 1));
+            currentPatrolPosition = exhibitionEntryPath[indexInExhibitionPath].position;
+
+            return true;
+        }
+        else if(exhibitionInsidePath != null)
+        {
+            if (indexInExhibitionPath < 0)
+            {
+                indexInExhibitionPath = 0;
+                animator.SetFloat("MoveBlend", 0f);
+                isMoving = false;
+
+                if (nextAction != null)
+                {
+                    nextAction?.Invoke();
+                    nextAction = null;
+                }
+
+                return false;
+            }
+
+            currentPatrolPosition = exhibitionInsidePath[indexInExhibitionPath].position;
+
+            return true;
+        }
+        else
+        {
+            Debug.LogError("Visitor: GetNextInPath, no paths found!");
+            return false;
+        }
+
     }
 
     public void GoToQueue()
@@ -149,27 +227,36 @@ public class Visitor : MonoBehaviour, IPoolable
 
     #region Patrol
 
-    public void SetNextCurrentPatrol()
+    public void SetNextTarget()
     {
-        if (patrolPositions.Count == 0)
+        if (exhibitionEntryPath != null || exhibitionInsidePath != null)
         {
-            if(nextAction != null)
-            {
-                nextAction?.Invoke();
+            if (!GetNextInPath())
                 return;
-            }
-
-            AddPatrolPoint(Extentions.GetRandomPatrolPoint());
-            SetState(VisitorState.Patrol);
         }
-        currentPatrolPosition = patrolPositions.Dequeue();
+
+        if(state == VisitorState.Patrol)
+        {
+            SetPatrolPoint(Extentions.GetRandomPatrolPoint());
+        }
+        //else
+        //{
+        //    if (nextAction != null)
+        //    {
+        //        isMoving = false;
+        //        nextAction?.Invoke();
+        //        return;
+        //    }
+
+        //    SetState(VisitorState.Patrol);
+        //}
         CalculateTarget();
 
         if (rotationNumerator != null)
             StopCoroutine(rotationNumerator);
         StartCoroutine(rotationNumerator = Rotate(currentPatrolPosition));
 
-        //SetState(VisitorState.Patrol);
+        isMoving = true;
     }
 
     private void CalculateTarget()
@@ -179,27 +266,9 @@ public class Visitor : MonoBehaviour, IPoolable
         targetMoveCount = Mathf.FloorToInt(Vector2.Distance(Extentions.Vector3ToVector2XZ(transform.position), Extentions.Vector3ToVector2XZ(currentPatrolPosition)) / currentSpeed);
     }
 
-    public void AddPatrolPoint(Vector3 newPatrol, bool patrolIfIdle = true)
+    public void SetPatrolPoint(Vector3 newPatrol)
     {
-        patrolPositions.Enqueue(newPatrol);
-
-        if (patrolIfIdle && targetVector == default)
-            SetNextCurrentPatrol();
-    }
-
-    public void SetPatrolPoints(Queue<Vector3> newPatrolPoints, bool startPatrol = true)
-    {
-        if(newPatrolPoints == null)
-        {
-            Debug.LogError("Visitor: SetPatrolPoints, null patrol points!");
-            return;
-        }
-
-        patrolPositions.Clear();
-        patrolPositions = newPatrolPoints;
-
-        if (startPatrol)
-            SetNextCurrentPatrol();
+        currentPatrolPosition = newPatrol;
     }
 
 

@@ -33,8 +33,11 @@ public class OrderManager : Singleton<OrderManager>
     private void Update()
     {
         if(Input.GetKeyDown(KeyCode.S)) {
-            foreach(var exhibition  in exhibitions) 
+            foreach(var exhibition  in exhibitions)
+            {
                 exhibition.StartExhibition();
+            }
+            StopAllCoroutines();
         }
     }
 
@@ -47,7 +50,7 @@ public class OrderManager : Singleton<OrderManager>
             if(patrollingVisitors.Count != 0 && !exhibition.IsEntryLineFilled)
             {
                 Visitor visitor = patrollingVisitors.Dequeue();
-                visitor.GetInLine(exhibition);
+                visitor.GetInEntryPath(exhibition);
                 exhibition.AddVisitorToEntryQueue(visitor);
             }
             yield return callTimeDelay;
