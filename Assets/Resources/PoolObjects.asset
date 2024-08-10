@@ -13,3 +13,4 @@ MonoBehaviour:
   m_Name: PoolObjects
   m_EditorClassIdentifier: 
   visitor: {fileID: 3238785567111305781, guid: 7cb2add5c0131cb48be927d7da27cbf7, type: 3}
+  guide: {fileID: 4268088827151560249, guid: a741de4f60c3a214086e55184e438b47, type: 3}

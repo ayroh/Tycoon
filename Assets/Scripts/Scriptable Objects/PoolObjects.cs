@@ -7,12 +7,14 @@ using UnityEngine;
 public class PoolObjects : ScriptableObject
 {
     [SerializeField] private Visitor visitor;
+    [SerializeField] private Guide guide;
 
     public Dictionary<IPoolable, int> GetIPoolables()
     {
         return new Dictionary<IPoolable, int>
         {
-            { visitor, 8 }
+            { visitor, 9 },
+            { guide, 0 }
         };
     }
 }

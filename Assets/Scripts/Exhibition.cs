@@ -1,7 +1,9 @@
+using Pool;
 using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using Unity.Collections;
 using UnityEditor;
 using UnityEngine;
 using Utilities.Constants;
@@ -12,6 +14,7 @@ public class Exhibition : MonoBehaviour
     [Header("References")]
     [SerializeField] private Transform entryPathParent;
     [SerializeField] private Transform insidePathParent;
+    [SerializeField] private Transform guidingPathParent;
     [SerializeField] private Transform waitingPoint;
 
     private readonly List<Transform> entryPath = new();
@@ -28,12 +31,13 @@ public class Exhibition : MonoBehaviour
 
     private readonly Queue<Vector3> insidePathPositions = new();
 
-    public int entryQueueCount => entryQueue.Count;
+    private Guide guide;
+
+    public float ExhibitionSpeed => exhibitionSpeed;
     public int exhibitionMaxInsideVisitorCount { get; private set; } = 6;
     public int exhibitionMaxEntryVisitorCount { get; private set; } = 6;
     public bool IsEntryLineFilled => entryQueue.Count == exhibitionMaxEntryVisitorCount;
-
-    public bool[] entryQueueOccupations;
+    public Transform GuidingPathParent => guidingPathParent;
 
     private int insidePathFrameLength = 0;
     private int exhibitionFrameCount = 0;
@@ -46,7 +50,8 @@ public class Exhibition : MonoBehaviour
         for (int i = 0;i < insidePathParent.childCount;i++)
             insidePath.Add(insidePathParent.GetChild(i));
 
-        entryQueueOccupations = new bool[exhibitionMaxEntryVisitorCount];
+        guide = (Guide)PoolManager.instance.Get(PoolObjectType.Guide);
+        guide.SetGuide(this);
     }
 
     private void Start()
@@ -59,13 +64,18 @@ public class Exhibition : MonoBehaviour
         CalculateInsidePathFrame();
     }
 
-    private void Update()
+    private void FixedUpdate()
     {
         if (Input.GetKeyDown(KeyCode.S)) {
             StartExhibition();
         }
 
-        if(state == ExhibitionState.Started)
+        if (Input.GetKeyDown(KeyCode.Q))
+        {
+            print(entryQueue.Count);
+        }
+
+        if (state == ExhibitionState.Started)
         {
             if (++exhibitionFrameCount > insidePathFrameLength)
                 EndExhibition();
@@ -83,68 +93,49 @@ public class Exhibition : MonoBehaviour
         for (int i = 0;i < visitorCount;i++)
             visitors.Add(entryQueue.Dequeue());
 
+        List<Transform> path = insidePath;
+        path.Add(entryPath[0]);
+
         for(int i = 0;i < visitors.Count;++i)
         {
             Visitor visitor = visitors[i];
-            if (visitor.state != VisitorState.WaitingInLine)
-            {
-                visitor.GetInEntryPath(this);
-                AddVisitorToEntryQueue(visitor);
-                continue;
-            }
-
-            visitor.GetInInsidePath(insidePath, exhibitionSpeed);
+            visitor.GetInInsidePath(path, exhibitionSpeed);
         }
 
-        Array.Fill(entryQueueOccupations, false);
+        guide.StartGuiding();
+
         SetState(ExhibitionState.Started);
     }
 
     public void EndExhibition()
     {
         visitors.Clear();
+        exhibitionFrameCount = 0;
 
         SetState(ExhibitionState.Waiting);
     }
 
     public void AddVisitorToEntryQueue(Visitor newVisitor)
     {
-        if (entryQueue.Count == exhibitionMaxEntryVisitorCount)
+        if (entryQueue.Count == exhibitionMaxEntryVisitorCount || entryQueue.Contains(newVisitor))
             return;
 
         entryQueue.Enqueue(newVisitor);
     }
 
-    public List<Transform> GetEntryLine() => entryPath;
-    public List<Transform> GetInsideLine() => insidePath;
+    public List<Transform> GetEntryPathUntilCurrentQueue()
+    {
+        List<Transform> entryLine = new();
+        for(int i = entryQueue.Count;i < entryPath.Count;i++)
+            entryLine.Add(entryPath[i]);
+        return entryLine;
+    }
+
+    public Transform GetWaitingPoint() => waitingPoint;
 
     public void SetState(ExhibitionState newState)
     {
         state = newState;
-    }
-
-    public bool GetIfEntryLineIndexIsOccupied(int index)
-    {
-        if (!Extentions.IsIndexWithinBounds(index, entryQueueOccupations))
-        {
-            Debug.LogError("Exhibition: GetIfEntryLineIndexIsOccupied, Index out of size!");
-            return false;
-        }
-
-        return entryQueueOccupations[index];
-    }
-
-
-    public void FillNextLine(int nextLineIndex, int previousLineIndex)
-    {
-        if(!Extentions.IsIndexWithinBounds(nextLineIndex, entryQueueOccupations) || !Extentions.IsIndexWithinBounds(previousLineIndex, entryQueueOccupations))
-        {
-            Debug.LogError("Exhibition: FillNextLine, Index out of size!");
-            return;
-        }
-
-        entryQueueOccupations[previousLineIndex] = false;
-        entryQueueOccupations[nextLineIndex] = true;
     }
 
     private void CalculateInsidePathFrame()
@@ -160,4 +151,5 @@ public class Exhibition : MonoBehaviour
         insidePathFrameLength = Mathf.FloorToInt(insidePathLength);
     }
 
+    
 }

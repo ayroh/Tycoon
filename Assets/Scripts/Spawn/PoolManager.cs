@@ -128,6 +128,7 @@ namespace Pool
     public enum PoolObjectType
     {
         Visitor,
+        Guide,
         NULL
     }
 }

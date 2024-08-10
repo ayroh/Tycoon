@@ -1,6 +1,7 @@
 using Cysharp.Threading.Tasks;
 using System.Collections;
 using System.Collections.Generic;
+using UnityEditor;
 using UnityEngine;
 using Utilities.Enums;
 
@@ -11,16 +12,24 @@ public class OrderManager : Singleton<OrderManager>
     private List<IEnumerator> exhibitionNumerators = new();
 
     private Queue<Visitor> patrollingVisitors = new();
-
+    HashSet<int> patrollingVisitorIds = new();
 
     public void AddVisitor(Visitor visitor)
     {
+        if(patrollingVisitors.Contains(visitor))
+        {
+            Debug.LogError("OrderManager: AddVisitor, Queue contains the visitor!");
+            return;
+        }
+
         patrollingVisitors.Enqueue(visitor);
     }
 
     private void Start()
     {
         IEnumerator tempNumerator;
+
+        Application.targetFrameRate = 120;
 
         for(int i = 0;i < exhibitions.Count;i++)
         {
@@ -30,16 +39,15 @@ public class OrderManager : Singleton<OrderManager>
         }
     }
 
-    private void Update()
-    {
-        if(Input.GetKeyDown(KeyCode.S)) {
-            foreach(var exhibition  in exhibitions)
-            {
-                exhibition.StartExhibition();
-            }
-            StopAllCoroutines();
-        }
-    }
+    //private void Update()
+    //{
+    //    if(Input.GetKeyDown(KeyCode.S)) {
+    //        foreach(var exhibition  in exhibitions)
+    //        {
+    //            exhibition.StartExhibition();
+    //        }
+    //    }
+    //}
 
     private IEnumerator StartExhibitionOrder(Exhibition exhibition, float visitorCallTime)
     {
@@ -47,11 +55,10 @@ public class OrderManager : Singleton<OrderManager>
 
         while(enabled)
         {
-            if(patrollingVisitors.Count != 0 && !exhibition.IsEntryLineFilled)
+            if(patrollingVisitors.Count != 0)
             {
                 Visitor visitor = patrollingVisitors.Dequeue();
-                visitor.GetInEntryPath(exhibition);
-                exhibition.AddVisitorToEntryQueue(visitor);
+                visitor.GetInWaitingPoint(exhibition);
             }
             yield return callTimeDelay;
         }

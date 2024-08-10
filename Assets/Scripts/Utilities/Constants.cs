@@ -9,6 +9,6 @@ namespace Utilities.Constants
 
         // Visitor
         public static float visitorForwardRotationTime = .25f;
-        public static float visitorMoveSpeed = .025f;
+        public static float visitorMoveSpeed = .04f;
     }
 }
