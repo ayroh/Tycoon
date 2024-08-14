@@ -10,7 +10,7 @@ using Utilities.Enums;
 
 public class Guide : Character, IPoolable
 {
-    PoolObjectType IPoolable.poolObjectType => PoolObjectType.Guide;
+    PoolObjectType IPoolable.PoolObjectType => PoolObjectType.Guide;
 
     public GuideState state { get; private set; } = GuideState.Waiting;
 
@@ -28,7 +28,7 @@ public class Guide : Character, IPoolable
         indexInPath = currentPath.Count;
         AddNextAction(() => SetState(GuideState.Waiting), true);
         
-        await UniTask.Delay(600);
+        await UniTask.Delay(500);
         SetState(GuideState.Guiding);
     }
 
@@ -71,7 +71,7 @@ public class Guide : Character, IPoolable
                 break;
             case GuideState.Guiding:
                 isMoving = true;
-                Animate(GuideAnimationState.Walking, Mathf.Lerp(0f, .5f, currentSpeed / Constants.visitorMoveSpeed));
+                Animate(GuideAnimationState.Walking, Mathf.Lerp(0f, 1f, (currentSpeed / 2) / Constants.visitorMoveSpeed));
                 break;
         }
     }

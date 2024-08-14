@@ -102,12 +102,12 @@ public class Character : MonoBehaviour, IPoolable
     #region Command
     public void AddNextAction(Action newAction, bool clearActions = false)
     {
-        if (clearActions) ClearActions();
+        if (clearActions) ClearNextActions();
 
         nextActions.Enqueue(newAction);
     }
 
-    protected void ClearActions() => nextActions.Clear();
+    protected void ClearNextActions() => nextActions.Clear();
 
     protected bool DoNextAction()
     {
@@ -124,7 +124,7 @@ public class Character : MonoBehaviour, IPoolable
 
     #region Pool
 
-    public PoolObjectType poolObjectType => throw new System.NotImplementedException();
+    public PoolObjectType PoolObjectType => throw new System.NotImplementedException();
 
     public virtual void Initialize(Transform parent = null)
     {

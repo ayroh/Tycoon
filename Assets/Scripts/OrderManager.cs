@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
+using Utilities.Constants;
 using Utilities.Enums;
 
 public class OrderManager : Singleton<OrderManager>
@@ -12,7 +13,6 @@ public class OrderManager : Singleton<OrderManager>
     private List<IEnumerator> exhibitionNumerators = new();
 
     private Queue<Visitor> patrollingVisitors = new();
-    HashSet<int> patrollingVisitorIds = new();
 
     public void AddVisitor(Visitor visitor)
     {
@@ -37,6 +37,9 @@ public class OrderManager : Singleton<OrderManager>
             exhibitionNumerators.Add(tempNumerator);
             exhibitions[i].SetState(ExhibitionState.Waiting);
         }
+
+        Constants.fixedUpdateFrameInterval = Time.fixedDeltaTime;
+        print("FixedDeltaTime: " +(Constants.fixedUpdateFrameInterval = Time.fixedDeltaTime));
     }
 
     //private void Update()

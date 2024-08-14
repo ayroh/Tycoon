@@ -8,7 +8,7 @@ public class Singleton<T> : MonoBehaviour where T : Singleton<T>
 {
     public static T instance;
 
-    public bool isPersistant;
+    private bool isPersistant = false;
 
     protected virtual void Awake()
     {

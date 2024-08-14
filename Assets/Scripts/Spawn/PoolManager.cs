@@ -27,7 +27,7 @@ namespace Pool
         {
             foreach (var poolObject in poolObjects.GetIPoolables())
             {
-                var poolObjectType = poolObject.Key.poolObjectType;
+                var poolObjectType = poolObject.Key.PoolObjectType;
                 var pool = new Pool(poolObject.Key);
                 poolTypeTpPoolItemDictionary.Add(poolObjectType, pool);
 
@@ -65,7 +65,7 @@ namespace Pool
 
         public void Release(IPoolable poolObject)
         {
-            var pool = poolTypeTpPoolItemDictionary[poolObject.poolObjectType];
+            var pool = poolTypeTpPoolItemDictionary[poolObject.PoolObjectType];
             poolObject.ResetObject(pooledObjectParent);
             pool.Push(poolObject);
         }

@@ -8,9 +8,10 @@ using System;
 
 public class Visitor : Character, IPoolable
 {
-    PoolObjectType IPoolable.poolObjectType => PoolObjectType.Visitor;
-    public VisitorState state { get; private set; } = VisitorState.Idle;
-    
+    PoolObjectType IPoolable.PoolObjectType => PoolObjectType.Visitor;
+    public VisitorState visitorState { get; private set; } = VisitorState.Idle;
+    public VisitorAnimationState visitorAnimationState { get; private set; } = VisitorAnimationState.Standing;
+
     // Exhibition
     private Exhibition currentExhibition;
 
@@ -25,7 +26,7 @@ public class Visitor : Character, IPoolable
     public void SetState(VisitorState newState) 
     {
 
-        switch (state)
+        switch (visitorState)
         {
             case VisitorState.Visiting:
                 currentPath = null;
@@ -40,7 +41,7 @@ public class Visitor : Character, IPoolable
                 break;
         }
 
-        if (state == newState)
+        if (visitorState == newState)
             return;
 
 
@@ -66,7 +67,7 @@ public class Visitor : Character, IPoolable
                 break;
 
             case VisitorState.Visiting:
-                Animate(VisitorAnimationState.Walking, Mathf.Lerp(0f, .5f, currentSpeed / Constants.visitorMoveSpeed));
+                Animate(VisitorAnimationState.Walking, Mathf.Lerp(0f, 1f, (currentSpeed / 2) / Constants.visitorMoveSpeed));
                 isMoving = true;
                 break;
 
@@ -76,7 +77,7 @@ public class Visitor : Character, IPoolable
                 break;
         }
 
-        state = newState;
+        visitorState = newState;
     }
 
     public void GetInWaitingPoint(Exhibition exhibition)
@@ -91,14 +92,14 @@ public class Visitor : Character, IPoolable
 
         indexInPath = currentPath.Count;
 
-        ClearActions();
+        ClearNextActions();
         AddNextAction(() => { GetInEntryPath(currentExhibition); }, true);
         SetNextTarget();
     }
 
     public void GetInEntryPath(Exhibition exhibition)
     {
-        if (exhibition.IsEntryLineFilled)
+        if (exhibition.IsEntryQueueFilled)
         {
             SetState(VisitorState.Patrol);
             return;
@@ -114,6 +115,26 @@ public class Visitor : Character, IPoolable
             Rotate(currentPath[0].eulerAngles, false);
             Animate(VisitorAnimationState.Standing);
         }, true);
+        SetNextTarget();
+    }
+
+
+    public void GetEndOfTheEntryPath(List<Transform> entryPath, List<Transform> insidePath)
+    {
+        if(visitorState != VisitorState.WaitingInLine)
+        {
+            Debug.LogError("Visitor: GetEndOfTheEntryPath, Requesting end of the entry path but visitor not inside the waiting line!");
+            return;
+        }
+
+        currentPath = entryPath;
+        indexInPath = currentPath.Count;
+        Animate(VisitorAnimationState.Walking);
+        ClearNextActions();
+
+        if (insidePath != null)
+            AddNextAction(() => GetInInsidePath(insidePath, currentExhibition.ExhibitionSpeed));
+
         SetNextTarget();
     }
 
@@ -133,7 +154,7 @@ public class Visitor : Character, IPoolable
     {
         --indexInPath;
 
-        if(state == VisitorState.GoingToLine || state == VisitorState.WaitingInLine || state == VisitorState.Visiting)
+        if(visitorState == VisitorState.GoingToLine || visitorState == VisitorState.WaitingInLine || visitorState == VisitorState.Visiting)
         {
             if (indexInPath < 0)
             {
@@ -144,11 +165,11 @@ public class Visitor : Character, IPoolable
             }
             else
             {
-                if(state == VisitorState.Visiting)
+                if(visitorState == VisitorState.Visiting)
                 {
-                    SetPatrolPoint(new Vector3(currentPath[indexInPath].position.x + Extentions.Noise(.01f, 75),
+                    SetPatrolPoint(new Vector3(currentPath[indexInPath].position.x + Extentions.Noise(.005f, 75),
                                                 currentPath[indexInPath].position.y,
-                                               currentPath[indexInPath].position.z + Extentions.Noise(.01f, 75)
+                                               currentPath[indexInPath].position.z + Extentions.Noise(.005f, 75)
                     ));
                 }
                 else
@@ -173,7 +194,7 @@ public class Visitor : Character, IPoolable
         {
             GetNextInPath();
         }
-        else if (state == VisitorState.Patrol)
+        else if (visitorState == VisitorState.Patrol)
         {
             SetPatrolPoint(Extentions.GetRandomPatrolPoint());
         }
@@ -185,12 +206,13 @@ public class Visitor : Character, IPoolable
     }
 
 
-    
-    
+
+    #region Animation
 
     private void Animate(VisitorAnimationState newAnimationState, float animationSpeed = -1)
     {
-        switch (newAnimationState)
+        visitorAnimationState = newAnimationState;
+        switch (visitorAnimationState)
         {
             case VisitorAnimationState.Standing:
                 animator.SetFloat("MoveBlend", 0f);
@@ -205,6 +227,7 @@ public class Visitor : Character, IPoolable
 
     }
 
+    #endregion
 
     #region Pool
 
