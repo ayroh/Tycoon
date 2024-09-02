@@ -1,4 +1,3 @@
-using Pool;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -7,6 +6,8 @@ using Unity.Collections;
 using UnityEngine;
 using Utilities.Constants;
 using Utilities.Enums;
+using Cysharp.Threading.Tasks;
+using Pool;
 
 public class Exhibition : MonoBehaviour
 {
@@ -35,7 +36,7 @@ public class Exhibition : MonoBehaviour
     public float Income => CalculateIncome(level, visitors.Count);
     public float UpgradeCost => CalculateCost(level);
 
-    private readonly List<Transform> entryPath = new();
+    public readonly List<Transform> entryPath = new();
     private readonly List<Transform> insidePath = new();
 
     private ExhibitionState state = ExhibitionState.Locked;
@@ -78,7 +79,7 @@ public class Exhibition : MonoBehaviour
     private void FixedUpdate()
     {
         if (Input.GetKeyDown(KeyCode.S)) {
-            StartExhibition();
+            TryStartingExhibition();
         }
 
         if (state == ExhibitionState.Started)
@@ -88,38 +89,39 @@ public class Exhibition : MonoBehaviour
         }
     }
 
-    public void StartExhibition()
+    private void StartExhibition()
     {
-        if (state != ExhibitionState.Waiting || entryQueue.All(visitor => visitor.visitorState != VisitorState.WaitingInLine))
+        if (state != ExhibitionState.Waiting || !entryQueue.Any(visitor => visitor.visitorAnimationState == VisitorAnimationState.Standing))
             return;
 
         visitors.Clear();
 
-        int visitorCount = Mathf.Min(entryQueue.Count, CurrentMaximumVisitor);
+        int visitorCount = entryQueue.Count;
         for (int i = 0;i < visitorCount;i++)
             visitors.Add(entryQueue.Dequeue());
 
-        List<Transform> entryPathUntilVisitorIndexTemp = new();
+        int visitorIndex = 0;
+        Visitor visitor;
 
-        for (int i = 0;i < visitors.Count;++i)
+        for (visitorIndex = 0;visitorIndex < visitors.Count;++visitorIndex)
         {
-            entryPathUntilVisitorIndexTemp.Add(entryPath[i]);
-            List<Transform> entryPathUntilVisitorIndex = new List<Transform>(entryPathUntilVisitorIndexTemp);
-
-            Visitor visitor = visitors[i];
-            if(visitor.visitorAnimationState != VisitorAnimationState.Standing)
-            {
-                for(int j = i;j < visitors.Count;++j)
-                {
-                    Visitor visitorToEntryQueue = visitors[j];
-                    visitorToEntryQueue.GetEndOfTheEntryPath(entryPathUntilVisitorIndex, null);
-                    AddVisitorToEntryQueue(visitorToEntryQueue);
-                }
+            visitor = visitors[visitorIndex];
+            if (visitor.visitorAnimationState != VisitorAnimationState.Standing)
                 break;
-            }
 
-            visitor.GetEndOfTheEntryPath(entryPathUntilVisitorIndex, insidePath);
-            //visitor.GetInInsidePath(path, ExhibitionSpeed);
+            visitor.GetEndOfTheEntryPath(insidePath);
+        }
+
+        if(visitorIndex != visitors.Count)
+        {
+            int removeStartIndex = visitorIndex;
+            for (;visitorIndex < visitors.Count;++visitorIndex)
+            {
+                visitor = visitors[visitorIndex];
+                visitor.GetEndOfTheEntryPath(null);
+                AddVisitorToEntryQueue(visitor);
+            }
+            visitors.RemoveRange(removeStartIndex, visitors.Count - removeStartIndex);
         }
 
         guide.SetCurrentSpeed(ExhibitionSpeed);
@@ -133,10 +135,21 @@ public class Exhibition : MonoBehaviour
         exhibitionFrameCount = 0;
         SetState(ExhibitionState.Waiting);
 
-        float income = Income * 100;
-        uiManager.AddMoney(income);
+        float income = Income;
         Player.instance.EarnMoney(income);
+        uiManager.RefreshMoney();
         visitors.Clear();
+
+        TryStartingExhibition();
+    }
+
+    public async void TryStartingExhibition()
+    {
+        while(state != ExhibitionState.Started)
+        {
+            StartExhibition();
+            await UniTask.Delay(3000);
+        }
     }
 
     public void AddVisitorToEntryQueue(Visitor newVisitor)
@@ -147,13 +160,7 @@ public class Exhibition : MonoBehaviour
         entryQueue.Enqueue(newVisitor);
     }
 
-    public List<Transform> GetEntryPathUntilCurrentQueue()
-    {
-        List<Transform> entryLine = new();
-        for(int i = entryQueue.Count;i < entryPath.Count;i++)
-            entryLine.Add(entryPath[i]);
-        return entryLine;
-    }
+    public int FirstEmptyEntryPathIndex => IsEntryQueueFilled ? -1 : entryQueue.Count;
 
     public Transform GetWaitingPoint() => waitingPoint;
 
@@ -183,12 +190,12 @@ public class Exhibition : MonoBehaviour
     {
         if(entryPathParent.childCount == CurrentMaximumVisitor)
         {
-            Debug.LogError("Exhition: IncrementMaxEntryVisitorCount, There is not enough entry queue points!");
+            Debug.LogError("Exhibition: IncrementMaxEntryVisitorCount, There is not enough entry queue points!");
             return;
         }
         else if(CurrentMaximumVisitor == maximumVisitor)
         {
-            Debug.LogError("Exhition: IncrementMaxEntryVisitorCount, Reached maximum visitor number!");
+            Debug.LogError("Exhibition: IncrementMaxEntryVisitorCount, Reached maximum visitor number!");
             return;
         }
 
@@ -199,7 +206,7 @@ public class Exhibition : MonoBehaviour
     {
         if(exhibitionTime == minimumExhibitionTime)
         {
-            Debug.LogError("Exhition: DecrementTime, Reached minimum exhibition time!");
+            Debug.LogError("Exhibition: DecrementTime, Reached minimum exhibition time!");
             return;
         }
 
@@ -209,10 +216,10 @@ public class Exhibition : MonoBehaviour
 
     public void IncrementLevel()
     {
-        //if (UpgradeCost > Player.instance.Money)
-        //    return;
+        if (UpgradeCost > Player.instance.Money)
+            return;
 
-        //Player.instance.SpendMoney(Mathf.FloorToInt(UpgradeCost));
+        Player.instance.SpendMoney(Mathf.FloorToInt(UpgradeCost));
         level++;
         print($"lv{level}: " + CalculateIncome(level, maximumVisitor) + " | " + CalculateCost(level));
     }
@@ -221,17 +228,21 @@ public class Exhibition : MonoBehaviour
 
     private float CalculateCost(int desiredLevel) 
     {
+        // Calculation of levels at the beginning and the end of the Jump
         float floorLevel = desiredLevel - (desiredLevel % levelJumpInterval);
         float ceilingLevel = desiredLevel + levelJumpInterval - (desiredLevel % levelJumpInterval) - 0.01f;
-        float upgradeValue = (Mathf.Floor((desiredLevel / levelJumpInterval)) * levelJumpUpgradePercentage / 100);
 
+        // Costs at the beginning and the end of the Jump
         float floor = CalculateIncome(floorLevel, maximumVisitor);
         float ceiling = CalculateIncome(ceilingLevel, maximumVisitor);
         float gap = ceiling - floor;
-        print("value: " + upgradeValue);
-        float newFloor = floor + (gap / 3) + (gap / 2) * upgradeValue;
-        float newCeiling = ceiling - (gap / 3) + (gap / 2) * upgradeValue;
 
+        // gap / 3 is for narrowing the gap
+        float newFloor = floor + (gap / 3);
+        float newCeiling = ceiling - (gap / 3);
+
+        // Upgrade values is for making income and cost higher at every Jump
+        float upgradeValue = gap * Mathf.Floor(desiredLevel / levelJumpInterval) * levelJumpUpgradePercentage / 100;
         newFloor += newFloor * upgradeValue;
         newCeiling += newCeiling * upgradeValue;
 

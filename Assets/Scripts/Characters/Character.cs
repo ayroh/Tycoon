@@ -17,7 +17,7 @@ public class Character : MonoBehaviour, IPoolable
     protected Vector3 targetVector = default;
     protected int currentMoveCount = 0, targetMoveCount = 0;
     protected bool isMoving = false;
-    protected int indexInPath = 0;
+    protected int indexInPath = 0, endIndexInPath = 0;
     protected List<Transform> currentPath;
 
     // Rotation

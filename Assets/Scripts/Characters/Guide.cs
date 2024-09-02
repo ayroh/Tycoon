@@ -26,6 +26,7 @@ public class Guide : Character, IPoolable
         }
 
         indexInPath = currentPath.Count;
+        endIndexInPath = 0;
         AddNextAction(() => SetState(GuideState.Waiting), true);
         
         await UniTask.Delay(500);
@@ -44,7 +45,7 @@ public class Guide : Character, IPoolable
     {
         --indexInPath;
 
-        if (indexInPath < 0)
+        if (indexInPath < endIndexInPath)
         {
             indexInPath = 0;
             isMoving = false;

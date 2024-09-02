@@ -33,13 +33,16 @@ public class OrderManager : Singleton<OrderManager>
 
         for(int i = 0;i < exhibitions.Count;i++)
         {
-            StartCoroutine(tempNumerator = StartExhibitionOrder(exhibitions[i], 1f));
+            if (!exhibitions[i].gameObject.activeInHierarchy)
+                continue;
+
+            StartCoroutine(tempNumerator = StartExhibitionOrder(exhibitions[i], 2f));
             exhibitionNumerators.Add(tempNumerator);
             exhibitions[i].SetState(ExhibitionState.Waiting);
+            exhibitions[i].TryStartingExhibition();
         }
 
-        Constants.fixedUpdateFrameInterval = Time.fixedDeltaTime;
-        print("FixedDeltaTime: " +(Constants.fixedUpdateFrameInterval = Time.fixedDeltaTime));
+        print("FixedDeltaTime: " + (Constants.fixedUpdateFrameInterval = Time.fixedDeltaTime));
     }
 
     //private void Update()

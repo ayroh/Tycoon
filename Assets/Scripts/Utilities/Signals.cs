@@ -8,5 +8,8 @@ namespace Utilities.Signals
 {
     public static class Signals
     {
+
+        public static Action<bool> OnNewSetAnswer = delegate { };
+
     }
 }

@@ -107,19 +107,15 @@ public class Visitor : Character, IPoolable
 
         SetState(VisitorState.WaitingInLine);
 
-        currentPath = exhibition.GetEntryPathUntilCurrentQueue();
-        indexInPath = currentPath.Count;
+        currentPath = exhibition.entryPath;
+        indexInPath = currentPath.Count - 1;
+
+        GetEndOfTheEntryPath(null);
         exhibition.AddVisitorToEntryQueue(this); 
-        
-        AddNextAction(() => {
-            Rotate(currentPath[0].eulerAngles, false);
-            Animate(VisitorAnimationState.Standing);
-        }, true);
-        SetNextTarget();
     }
 
 
-    public void GetEndOfTheEntryPath(List<Transform> entryPath, List<Transform> insidePath)
+    public void GetEndOfTheEntryPath(List<Transform> insidePath)
     {
         if(visitorState != VisitorState.WaitingInLine)
         {
@@ -127,14 +123,24 @@ public class Visitor : Character, IPoolable
             return;
         }
 
-        currentPath = entryPath;
-        indexInPath = currentPath.Count;
-        Animate(VisitorAnimationState.Walking);
         ClearNextActions();
 
         if (insidePath != null)
+        {
+            endIndexInPath = 0;
+            Animate(VisitorAnimationState.Walking);
             AddNextAction(() => GetInInsidePath(insidePath, currentExhibition.ExhibitionSpeed));
+        }
+        else
+        {
+            endIndexInPath = currentExhibition.FirstEmptyEntryPathIndex;
+            AddNextAction(() => {
+                Rotate(currentPath[endIndexInPath].eulerAngles, false);
+                Animate(VisitorAnimationState.Standing);
+            });
+        }
 
+        indexInPath++;
         SetNextTarget();
     }
 
@@ -156,7 +162,7 @@ public class Visitor : Character, IPoolable
 
         if(visitorState == VisitorState.GoingToLine || visitorState == VisitorState.WaitingInLine || visitorState == VisitorState.Visiting)
         {
-            if (indexInPath < 0)
+            if (indexInPath < endIndexInPath)
             {
                 indexInPath = 0;
                 isMoving = false;
