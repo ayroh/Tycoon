@@ -240,7 +240,7 @@ public class Visitor : Character, IPoolable
     public override void Initialize(Transform parent = null)
     {
         SetState(VisitorState.Idle);
-
+        transform.SetParent(parent);
     }
 
     public override void ResetObject(Transform parent = null)

@@ -1,28 +1,38 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using Utilities.Enums;
+using Utilities.Signals;
 
 public class CameraMovement : MonoBehaviour
 {
     
-    private bool canMove = true;
     private Vector3 startMousePos, startCameraPos, lastMousePos;
     private Vector2 movementConstantRatioWithCamera;
     private IEnumerator driftCoroutine;
 
     private const float speedConstant = 0.05f;
     private const float maximumSpeed = 4f;
-    private const float minimumDriftStartSpeed = .5f;
+    private const float minimumDriftStartSpeed = .2f;
 
-    private void Awake()
+    private bool clicked = false;
+
+
+    private void Start()
     {
         float pixelByDistance = (Camera.main.orthographicSize * 2) / Screen.height;
         movementConstantRatioWithCamera = new Vector2(pixelByDistance, pixelByDistance / Mathf.Sin(Mathf.Deg2Rad * transform.eulerAngles.x));
+
+        Signals.OnFaceCanvasToCamera?.Invoke(transform.rotation);
     }
 
     private void Update()
     {
-        if (!canMove) return;
+        if (GameManager.GameState != GameState.Play)
+        {
+            clicked = false;
+            return;
+        }
 
         if(Input.GetMouseButtonDown(0))
         {
@@ -30,8 +40,10 @@ public class CameraMovement : MonoBehaviour
 
             startMousePos = Input.mousePosition;
             startCameraPos = transform.position;
+
+            clicked = true;
         }
-        else if(Input.GetMouseButton(0)) 
+        else if(clicked && Input.GetMouseButton(0)) 
         {
             Vector3 currentFrameInput = Input.mousePosition;
             float xDiff = startMousePos.x - currentFrameInput.x;
@@ -42,10 +54,12 @@ public class CameraMovement : MonoBehaviour
 
             lastMousePos = Input.mousePosition;
         }
-        else if (Input.GetMouseButtonUp(0))
+        else if (clicked && Input.GetMouseButtonUp(0))
         {
             StartCoroutine(driftCoroutine = Drift());
+            clicked = false;
         }
+
 
     }
 

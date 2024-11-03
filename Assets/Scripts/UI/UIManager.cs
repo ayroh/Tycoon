@@ -2,6 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
+using Utilities.Signals;
 
 public class UIManager : MonoBehaviour
 {
@@ -18,4 +19,14 @@ public class UIManager : MonoBehaviour
         RefreshMoney();
     }
 
+
+    private void OnEnable()
+    {
+        Signals.OnMoneyUpdated += RefreshMoney;
+    }
+
+    private void OnDisable()
+    {
+        Signals.OnMoneyUpdated -= RefreshMoney;
+    }
 }

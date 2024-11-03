@@ -96,6 +96,7 @@ public class Guide : Character, IPoolable
     public void SetGuide(Exhibition newExhibition)
     {
         exhibition = newExhibition;
+
         Transform guidingPathParent = exhibition.GuidingPathParent;
 
         if (guidingPathParent.childCount < 2)
@@ -110,6 +111,7 @@ public class Guide : Character, IPoolable
             currentPath.Add(guidingPathParent.GetChild(i));
 
         transform.position = currentPath[0].position;
+        transform.SetParent(exhibition.transform);
 
         SetCurrentSpeed(exhibition.ExhibitionSpeed);
     }

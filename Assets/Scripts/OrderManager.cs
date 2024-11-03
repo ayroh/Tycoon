@@ -42,18 +42,8 @@ public class OrderManager : Singleton<OrderManager>
             exhibitions[i].TryStartingExhibition();
         }
 
-        print("FixedDeltaTime: " + (Constants.fixedUpdateFrameInterval = Time.fixedDeltaTime));
+        //print("FixedDeltaTime: " + (Constants.fixedUpdateFrameInterval = Time.fixedDeltaTime));
     }
-
-    //private void Update()
-    //{
-    //    if(Input.GetKeyDown(KeyCode.S)) {
-    //        foreach(var exhibition  in exhibitions)
-    //        {
-    //            exhibition.StartExhibition();
-    //        }
-    //    }
-    //}
 
     private IEnumerator StartExhibitionOrder(Exhibition exhibition, float visitorCallTime)
     {

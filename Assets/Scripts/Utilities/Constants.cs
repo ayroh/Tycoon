@@ -18,6 +18,7 @@ namespace Utilities.Constants
 
         // Earning
         public static int LevelBaseDivider = 10;
+        public static int MaximumExhibitionVisitor = 8;
 
     }
 }

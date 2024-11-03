@@ -1,6 +1,8 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using Utilities.Signals;
 
 public class Player : Singleton<Player>
 {
@@ -16,6 +18,12 @@ public class Player : Singleton<Player>
         set => PlayerPrefs.SetFloat("Money", value);
     }
 
+    public string LastEnter
+    {
+        get => PlayerPrefs.GetString("LastEnter");
+        set => PlayerPrefs.SetString("LastEnter", value);
+    }
+
     protected override void Awake()
     {
         base.Awake();
@@ -26,6 +34,7 @@ public class Player : Singleton<Player>
     {
         if (!PlayerPrefs.HasKey("Name")) PlayerPrefs.SetString("Name", "NULL");
         if (!PlayerPrefs.HasKey("Money")) PlayerPrefs.SetFloat("Money", 0);
+        if (!PlayerPrefs.HasKey("LastEnter")) PlayerPrefs.SetString("LastEnter", DateTime.UtcNow.ToString());
     }
 
     #region Money
@@ -38,6 +47,7 @@ public class Player : Singleton<Player>
             return;
         }
         Money += amount;
+        Signals.OnMoneyUpdated?.Invoke();
     }
 
     public bool HasEnoughMoney(float amount) => Money >= amount;
@@ -54,6 +64,7 @@ public class Player : Singleton<Player>
             return false;
 
         Money -= amount;
+        Signals.OnMoneyUpdated?.Invoke();
         return true;
     }
 
