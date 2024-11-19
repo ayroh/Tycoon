@@ -13,17 +13,12 @@ using Utilities.Signals;
 
 public class Exhibition : MonoBehaviour
 {
-    [Header("Test")]
-    [SerializeField] private UIManager uiManager;
-
     [Header("References")]
     [SerializeField] private Transform entryPathParent;
     [SerializeField] private Transform insidePathParent;
     [SerializeField] private Transform guidingPathParent;
     [SerializeField] private Transform waitingPoint;
-    [SerializeField] private Image timerInsideImage;
     [SerializeField] private Canvas worldCanvas;
-    [SerializeField] private UpgradeMenuController upgradeMenuController;
 
     [Header("Values")]
     [SerializeField] private float exhibitionTime = 20f;
@@ -61,7 +56,6 @@ public class Exhibition : MonoBehaviour
     public bool IsEntryQueueFilled => (entryQueue.Count == CurrentMaximumVisitor);
     public Transform GuidingPathParent => guidingPathParent;
 
-
     private int exhibitionTimeFrame = 0;
     private int exhibitionFrameCount = 0;
     private float insidePathLength = 0;
@@ -80,6 +74,8 @@ public class Exhibition : MonoBehaviour
             insidePathPositions.Enqueue(insidePath[i].position);
 
         CalculateExhibitionValues();
+
+        bounds = new OrientedBounds(transform.position, Constants.ExhibitionSize, transform.rotation);
 
         guide = (Guide)PoolManager.instance.Get(PoolObjectType.Guide);
         guide.SetGuide(this);
@@ -159,7 +155,6 @@ public class Exhibition : MonoBehaviour
         SetState(ExhibitionState.Waiting);
 
         Player.instance.EarnMoney(Income);
-        uiManager.RefreshMoney();
         visitors.Clear();
 
         TryStartingExhibition();
@@ -181,24 +176,13 @@ public class Exhibition : MonoBehaviour
     #endregion
 
   
-
-    private void CalculateExhibitionValues()
-    {
-        exhibitionTimeFrame = (int)(exhibitionTime / Constants.fixedUpdateFrameInterval);
-
-        if(insidePathLength == 0)
-        {
-            insidePathLength += Vector2.Distance(Extentions.Vector3ToVector2XZ(insidePath[0].position), Extentions.Vector3ToVector2XZ(entryPath[Mathf.FloorToInt((float)entryPath.Count / 2)].position));
-            for (int i = 0;i < insidePath.Count - 1;++i)
-            {
-                insidePathLength += Vector2.Distance(Extentions.Vector3ToVector2XZ(insidePath[i].position), Extentions.Vector3ToVector2XZ(insidePath[i + 1].position));
-            }
-        }
-
-        ExhibitionSpeed = insidePathLength / exhibitionTimeFrame;
-    }
-
     #region Upgrades
+
+    [Header("Upgrade")]
+    [SerializeField] private Image timerInsideImage;
+    [SerializeField] private Canvas upgradeMenuCanvas;
+    [SerializeField] private UpgradeMenuController upgradeMenuController;
+
     public void IncrementLevel()
     {
         if (UpgradeCost > Player.instance.Money)
@@ -273,10 +257,20 @@ public class Exhibition : MonoBehaviour
 
         return Mathf.Lerp(newFloor, newCeiling, (float)(desiredLevel % levelJumpInterval) / levelJumpInterval);
     }
+
     public void OpenUpgradeMenu()
     {
-
+        upgradeMenuCanvas.gameObject.SetActive(true);
     }
+
+    #endregion
+
+
+    #region Bounds
+
+    private OrientedBounds bounds;
+
+    public bool IsInBounds(Vector3 point) => bounds.Contains(point);
 
     #endregion
 
@@ -287,6 +281,22 @@ public class Exhibition : MonoBehaviour
             return;
 
         entryQueue.Enqueue(newVisitor);
+    }
+
+    private void CalculateExhibitionValues()
+    {
+        exhibitionTimeFrame = (int)(exhibitionTime / Constants.fixedUpdateFrameInterval);
+
+        if (insidePathLength == 0)
+        {
+            insidePathLength += Vector2.Distance(Extentions.Vector3ToVector2XZ(insidePath[0].position), Extentions.Vector3ToVector2XZ(entryPath[Mathf.FloorToInt((float)entryPath.Count / 2)].position));
+            for (int i = 0;i < insidePath.Count - 1;++i)
+            {
+                insidePathLength += Vector2.Distance(Extentions.Vector3ToVector2XZ(insidePath[i].position), Extentions.Vector3ToVector2XZ(insidePath[i + 1].position));
+            }
+        }
+
+        ExhibitionSpeed = insidePathLength / exhibitionTimeFrame;
     }
 
     public int FirstEmptyEntryPathIndex => IsEntryQueueFilled ? -1 : entryQueue.Count;

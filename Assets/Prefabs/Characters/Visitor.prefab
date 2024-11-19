@@ -361,7 +361,7 @@ PrefabInstance:
     - target: {fileID: 919132149155446097, guid: 494b991ed55d31b40aebf5b9cda42834,
         type: 3}
       propertyPath: m_Name
-      value: SimpleCharacter
+      value: Visitor
       objectReference: {fileID: 0}
     - target: {fileID: 1402852762130297889, guid: 494b991ed55d31b40aebf5b9cda42834,
         type: 3}
@@ -571,7 +571,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   animator: {fileID: 637291975588586898}
-  speed: 0.04
 --- !u!95 &637291975588586898
 Animator:
   serializedVersion: 5

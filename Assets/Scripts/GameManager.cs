@@ -23,6 +23,7 @@ public class GameManager : MonoBehaviour
         {
             DateTime previousDate = DateTime.Parse(lastEnter);
             Player.instance.Money += (float)(DateTime.UtcNow - previousDate).TotalSeconds / 1000;
+            print("Money+: " + ((float)(DateTime.UtcNow - previousDate).TotalSeconds / 1000));
         }
         catch
         {

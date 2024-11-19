@@ -8,7 +8,6 @@ namespace Utilities.Enums
     public enum ExhibitionState { Started, Waiting, Locked }
     public enum GuideState { Waiting, Guiding }
     public enum GuideAnimationState { Standing, Walking, Running }
-
     public enum UpgradeType { Exhibition, Capacity, Time }
 
 }

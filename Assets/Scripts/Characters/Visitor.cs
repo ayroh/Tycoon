@@ -15,19 +15,44 @@ public class Visitor : Character, IPoolable
     // Exhibition
     private Exhibition currentExhibition;
 
+    private List<Vector3> patrolPath = new();
+
 
     private void Start()
     {
-        GoToQueue();
+        SetState(VisitorState.Patrol);
     }
 
- 
+    //private void Update()
+    //{
+    //    if (Input.GetMouseButtonDown(0))
+    //    {
+    //        if(Physics.Raycast(Camera.main.ScreenPointToRay(Input.mousePosition),out RaycastHit hit))
+    //        {
+    //            visitorState = VisitorState.Patrol;
+    //            SetCurrentSpeed(Constants.visitorMoveSpeed);
+    //            Animate(VisitorAnimationState.Walking);
+    //            isMoving = true;
+    //            OrderManager.instance.SetPath(patrolPath, transform.position, Extentions.Vector3ZeroY(hit.point));
+    //            indexInPath = patrolPath.Count;
+    //            endIndexInPath = 0;
+    //            SetNextTarget();
+    //        }
+
+    //    }
+    //}
 
     public void SetState(VisitorState newState) 
     {
+        if (visitorState == newState)
+            return;
 
         switch (visitorState)
         {
+            case VisitorState.Patrol:
+                patrolPath.Clear();
+                break;
+
             case VisitorState.Visiting:
                 currentPath = null;
                 break;
@@ -41,9 +66,7 @@ public class Visitor : Character, IPoolable
                 break;
         }
 
-        if (visitorState == newState)
-            return;
-
+        visitorState = newState;
 
         switch (newState)
         {
@@ -52,6 +75,7 @@ public class Visitor : Character, IPoolable
                 GoToQueue();
                 Animate(VisitorAnimationState.Walking);
                 isMoving = true;
+                SetPatrolPath();
                 SetNextTarget();
                 break;
 
@@ -77,7 +101,6 @@ public class Visitor : Character, IPoolable
                 break;
         }
 
-        visitorState = newState;
     }
 
     public void GetInWaitingPoint(Exhibition exhibition)
@@ -85,14 +108,9 @@ public class Visitor : Character, IPoolable
         SetState(VisitorState.GoingToLine);
 
         currentExhibition = exhibition;
-        currentPath = new List<Transform>()
-        {
-            exhibition.GetWaitingPoint()
-        };
+        OrderManager.instance.SetPath(patrolPath, transform.position, exhibition.GetWaitingPoint().position);
+        indexInPath = patrolPath.Count;
 
-        indexInPath = currentPath.Count;
-
-        ClearNextActions();
         AddNextAction(() => { GetInEntryPath(currentExhibition); }, true);
         SetNextTarget();
     }
@@ -159,9 +177,14 @@ public class Visitor : Character, IPoolable
     public void GetNextInPath()
     {
         --indexInPath;
-
-        if(visitorState == VisitorState.GoingToLine || visitorState == VisitorState.WaitingInLine || visitorState == VisitorState.Visiting)
+        if(visitorState == VisitorState.WaitingInLine || visitorState == VisitorState.Visiting)
         {
+            if(currentPath == null)
+            {
+                Debug.LogError("Visitor: GetNextInPath, currentPath is empty!");
+                return;
+            }
+
             if (indexInPath < endIndexInPath)
             {
                 indexInPath = 0;
@@ -173,42 +196,61 @@ public class Visitor : Character, IPoolable
             {
                 if(visitorState == VisitorState.Visiting)
                 {
-                    SetPatrolPoint(new Vector3(currentPath[indexInPath].position.x + Extentions.Noise(.005f, 75),
-                                                currentPath[indexInPath].position.y,
-                                               currentPath[indexInPath].position.z + Extentions.Noise(.005f, 75)
-                    ));
+                    SetPatrolPoint(new Vector3(currentPath[indexInPath].position.x + Extentions.Noise(.005f, 75), currentPath[indexInPath].position.y,currentPath[indexInPath].position.z + Extentions.Noise(.005f, 75)                    ));
                 }
                 else
                 {
                     SetPatrolPoint(currentPath[indexInPath].position);
                 }
             }
-            return;
+        }
+        else if (visitorState == VisitorState.Patrol || visitorState == VisitorState.GoingToLine)
+        {
+            if(patrolPath.Count == 0)
+            {
+                Debug.LogError("Visitor: GetNextInPath, patrolPath is empty!");
+                return;
+            }
+
+            if (indexInPath < endIndexInPath)
+            {
+                indexInPath = 0;
+                isMoving = false;
+                DoNextAction();
+            }
+            else
+            {
+                SetPatrolPoint(patrolPath[indexInPath]);
+            }
         }
         else
         {
             Debug.LogError("Visitor: GetNextInPath, no paths found!");
+            indexInPath = 0;
+            SetPatrolPoint(default);
         }
-
-        SetPatrolPoint(default);
     }
 
 
     protected override void FindTarget()
     {
-        if (currentPath != null)
-        {
-            GetNextInPath();
-        }
-        else if (visitorState == VisitorState.Patrol)
-        {
-            SetPatrolPoint(Extentions.GetRandomPatrolPoint());
-        }
+        if (visitorState == VisitorState.Idle)
+            return;
+
+        GetNextInPath();
     }
 
     public void GoToQueue()
     {
         OrderManager.instance.AddVisitor(this);
+    }
+
+    private void SetPatrolPath()
+    {
+        OrderManager.instance.SetPatrolPath(patrolPath, transform.position);
+        indexInPath = patrolPath.Count;
+        endIndexInPath = 0;
+        AddNextAction(() => SetPatrolPath(), true);
     }
 
 

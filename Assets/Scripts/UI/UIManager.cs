@@ -11,7 +11,7 @@ public class UIManager : MonoBehaviour
 
     public void RefreshMoney()
     {
-        moneyText.text = (Player.instance.Money).ToString("00.0");
+        moneyText.text = Player.instance.Money.ToString("00.0");
     }
 
     private void Start()

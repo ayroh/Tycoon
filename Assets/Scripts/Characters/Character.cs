@@ -47,7 +47,6 @@ public class Character : MonoBehaviour, IPoolable
         FindTarget();
         if (targetPosition == default)
             return;
-
         CalculateTarget();
 
         Rotate(targetPosition - transform.position, true);

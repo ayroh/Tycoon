@@ -1,8 +1,10 @@
 using Cysharp.Threading.Tasks;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEditor;
 using UnityEngine;
+using UnityEngine.AI;
 using Utilities.Constants;
 using Utilities.Enums;
 
@@ -13,6 +15,9 @@ public class OrderManager : Singleton<OrderManager>
     private List<IEnumerator> exhibitionNumerators = new();
 
     private Queue<Visitor> patrollingVisitors = new();
+    private Navigator navigator;
+
+    private Vector3[] randomPatrolPoints = new Vector3[20];
 
     public void AddVisitor(Visitor visitor)
     {
@@ -42,7 +47,15 @@ public class OrderManager : Singleton<OrderManager>
             exhibitions[i].TryStartingExhibition();
         }
 
-        //print("FixedDeltaTime: " + (Constants.fixedUpdateFrameInterval = Time.fixedDeltaTime));
+        navigator = new();
+        for(int i = 0;i < randomPatrolPoints.Length;i++)
+        {
+            do
+            {
+                randomPatrolPoints[i] = Extentions.GetRandomPatrolPoint();
+            }
+            while (exhibitions.Any(exhibition => exhibition.IsInBounds(randomPatrolPoints[i])));
+        }
     }
 
     private IEnumerator StartExhibitionOrder(Exhibition exhibition, float visitorCallTime)
@@ -60,5 +73,16 @@ public class OrderManager : Singleton<OrderManager>
         }
         
     }
+
+    public void SetPatrolPath(List<Vector3> patrolPath, Vector3 startPoint)
+    {
+        navigator.SetPatrolPath(patrolPath, startPoint, randomPatrolPoints[Random.Range(0, randomPatrolPoints.Length)]);
+    }
+
+    public void SetPath(List<Vector3> path, Vector3 startPoint, Vector3 targetPoint)
+    {
+        navigator.SetPatrolPath(path, startPoint, targetPoint);
+    }
+
 
 }
