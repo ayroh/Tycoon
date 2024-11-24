@@ -27,7 +27,7 @@ public class Visitor : Character, IPoolable
     //{
     //    if (Input.GetMouseButtonDown(0))
     //    {
-    //        if(Physics.Raycast(Camera.main.ScreenPointToRay(Input.mousePosition),out RaycastHit hit))
+    //        if (Physics.Raycast(Camera.main.ScreenPointToRay(Input.mousePosition), out RaycastHit hit))
     //        {
     //            visitorState = VisitorState.Patrol;
     //            SetCurrentSpeed(Constants.visitorMoveSpeed);
@@ -38,7 +38,6 @@ public class Visitor : Character, IPoolable
     //            endIndexInPath = 0;
     //            SetNextTarget();
     //        }
-
     //    }
     //}
 

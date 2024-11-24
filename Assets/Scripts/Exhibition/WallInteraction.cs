@@ -28,4 +28,10 @@ public class WallInteraction : MonoBehaviour
     }
 
 
+    //private void OnDrawGizmos()
+    //{
+    //    Gizmos.DrawLine(boxCollider.bounds.center, _leftPoint);
+    //    Gizmos.DrawLine(boxCollider.bounds.center, _rightPoint);
+    //}
+
 }
