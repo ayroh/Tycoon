@@ -93,11 +93,9 @@ public class Guide : Character, IPoolable
         }
     }
 
-    public void SetGuide(Exhibition newExhibition)
+    public void SetGuide(Exhibition newExhibition, Transform guidingPathParent)
     {
         exhibition = newExhibition;
-
-        Transform guidingPathParent = exhibition.GuidingPathParent;
 
         if (guidingPathParent.childCount < 2)
         {

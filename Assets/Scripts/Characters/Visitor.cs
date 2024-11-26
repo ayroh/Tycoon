@@ -107,7 +107,7 @@ public class Visitor : Character, IPoolable
         SetState(VisitorState.GoingToLine);
 
         currentExhibition = exhibition;
-        OrderManager.instance.SetPath(patrolPath, transform.position, exhibition.GetWaitingPoint().position);
+        OrderManager.instance.SetPath(patrolPath, transform.position, exhibition.WaitingPoint.position);
         indexInPath = patrolPath.Count;
 
         AddNextAction(() => { GetInEntryPath(currentExhibition); }, true);
@@ -124,8 +124,8 @@ public class Visitor : Character, IPoolable
 
         SetState(VisitorState.WaitingInLine);
 
-        currentPath = exhibition.entryPath;
-        indexInPath = currentPath.Count - 1;
+        currentPath = exhibition.EntryPath;
+        indexInPath = exhibition.Capacity - 1;
 
         GetEndOfTheEntryPath(null);
         exhibition.AddVisitorToEntryQueue(this); 

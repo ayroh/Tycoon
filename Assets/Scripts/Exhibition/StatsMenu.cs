@@ -7,12 +7,20 @@ using Utilities.Constants;
 
 public class StatsMenu : MonoBehaviour
 {
-    public class Stats
+    public struct Stats
     {
+        public Stats(int level, float income,  int capacity, int time)
+        {
+            this.level = level;
+            this.income = income;
+            this.capacity = capacity;
+            this.time = time;
+        }
+
         public int level;
         public float income;
         public int capacity;
-        public float time;
+        public int time;
     }
 
     [Header("References")]
@@ -44,9 +52,9 @@ public class StatsMenu : MonoBehaviour
         capacityText.text = capacity.ToString();
     }
 
-    public void SetTime(float time)
+    public void SetTime(int time)
     {
-        timeText.text = time.ToString("0.0");
+        timeText.text = time.ToString();
     }
 
 

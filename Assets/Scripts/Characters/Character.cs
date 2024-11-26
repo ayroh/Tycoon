@@ -3,6 +3,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Rendering;
 using Utilities.Constants;
 
 public class Character : MonoBehaviour, IPoolable
@@ -73,6 +74,9 @@ public class Character : MonoBehaviour, IPoolable
 
     protected void Rotate(Vector3 newRotation, bool isDirection)
     {
+        if (newRotation == Vector3.zero)
+            return;
+
         if (rotationNumerator != null)
             StopCoroutine(rotationNumerator);
         StartCoroutine(rotationNumerator = RotateCoroutine(newRotation, isDirection));

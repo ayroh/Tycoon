@@ -1,3 +1,4 @@
+using JetBrains.Annotations;
 using System.Collections;
 using System.Collections.Generic;
 using TMPro;
@@ -33,7 +34,7 @@ public class UpgradeMenu : MonoBehaviour
 
     private void RefreshUpgradeButton()
     {
-        upgradeButton.interactable = Player.instance.Money >= cost;
+        upgradeButton.interactable = Player.instance.Money >= cost && CanUpgrade;
     }
 
     public void FinishUpgrade()
@@ -47,8 +48,8 @@ public class UpgradeMenu : MonoBehaviour
 
     private void OnEnable()
     {
-        if (!CanUpgrade) return;
         Signals.OnMoneyUpdated += RefreshUpgradeButton;
+        RefreshUpgradeButton();
     }
 
     private void OnDisable()

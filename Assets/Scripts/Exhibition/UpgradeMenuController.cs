@@ -40,7 +40,7 @@ public class UpgradeMenuController : MonoBehaviour
                 statsMenu.SetCapacity((int)values[0]);
                 break;
             case UpgradeType.Time:
-                statsMenu.SetTime(values[0]);
+                statsMenu.SetTime((int)values[0]);
                 break;
         }
     }

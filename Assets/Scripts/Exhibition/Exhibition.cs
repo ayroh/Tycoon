@@ -17,53 +17,44 @@ public class Exhibition : MonoBehaviour
     [SerializeField] private Transform entryPathParent;
     [SerializeField] private Transform insidePathParent;
     [SerializeField] private Transform guidingPathParent;
+    [SerializeField] private Transform carpetParent;
     [SerializeField] private Transform waitingPoint;
     [SerializeField] private Canvas worldCanvas;
 
     [Header("Values")]
-    [SerializeField] private float exhibitionTime = 20f;
     [SerializeField] private float minimumExhibitionTime = 10f;
     [SerializeField] private float initialCost = 9f;
-    //[SerializeField] private float nextCostLevelDivider = 50f;
     [SerializeField] private float coefficient = 1.16f;
-    [SerializeField] private int levelJumpInterval = 10;
     [SerializeField] private float incomeDivider = 20f;
-    //[SerializeField] private int maximumVisitor = 8;
     [SerializeField] private float levelJumpUpgradePercentage = 5f;
-
-    private int level = 1;
-
-    public float Income => CalculateIncome(level, visitors.Count);
-    public float UpgradeCost => CalculateCost(level);
-    public float CapacityCost => 2;
-    public float TimeCost => 3;
-
-    // 3 6.75 22.5 110 825
-
-    public readonly List<Transform> entryPath = new();
-    private readonly List<Transform> insidePath = new();
+    [SerializeField] private int levelJumpInterval = 10;
+    [SerializeField] private ExhibitionType type;
 
     private ExhibitionState state = ExhibitionState.Locked;
+    private Data data;
 
-    private List<Visitor> visitors = new();
-    private Queue<Visitor> entryQueue = new();
-    private Guide guide;
-
-    private readonly Queue<Vector3> insidePathPositions = new();
+    public float Income => CalculateIncome(data.level, visitors.Count);
+    public float UpgradeCost => CalculateUpgradeCost(data.level);
+    public float CapacityCost => CalculateCapacityCost(data.capacity - Constants.InitialExhibitionCapacity + 1);
+    public float TimeCost => CalculateTimeCost(Constants.InitialExhibitionTime - data.time + 1);
+    public bool IsEntryQueueFilled => (entryQueue.Count == data.capacity);
+    public int FirstEmptyEntryPathIndex => IsEntryQueueFilled ? -1 : entryQueue.Count;
+    public int Capacity => data.capacity;
 
     public float ExhibitionSpeed { get; private set; } = 0f;
-    public int CurrentMaximumVisitor { get; private set; } = 4;
-    public bool IsEntryQueueFilled => (entryQueue.Count == CurrentMaximumVisitor);
-    public Transform GuidingPathParent => guidingPathParent;
 
-    private int exhibitionTimeFrame = 0;
-    private int exhibitionFrameCount = 0;
-    private float insidePathLength = 0;
+    private Guide guide;
+    private List<Visitor> visitors = new();
+    private Queue<Visitor> entryQueue = new();
 
-    private float currentExhibitionTimeFrame = 0f;
 
     private void Awake()
     {
+        data = Player.instance.LoadExhibition(type);
+
+        for(int i = 0;i < data.capacity;++i)
+            carpetParent.GetChild(i).gameObject.SetActive(true);
+
         for(int i = 0;i < entryPathParent.childCount;i++)
             entryPath.Add(entryPathParent.GetChild(i));
 
@@ -78,24 +69,13 @@ public class Exhibition : MonoBehaviour
         bounds = new OrientedBounds(transform.position, Constants.ExhibitionSize, transform.rotation);
 
         guide = (Guide)PoolManager.instance.Get(PoolObjectType.Guide);
-        guide.SetGuide(this);
+        guide.SetGuide(this, guidingPathParent);
 
-        StatsMenu.Stats newStats = new StatsMenu.Stats()
-        {
-            level = level,
-            income = Income,
-            capacity = CurrentMaximumVisitor,
-            time = exhibitionTime
-        };
-        upgradeMenuController.Initialise(newStats, UpgradeCost, 2, 3);
+        upgradeMenuController.Initialise(new StatsMenu.Stats(data.level, Income, data.capacity, data.time), UpgradeCost, CapacityCost, TimeCost) ;
     }
 
     private void FixedUpdate()
     {
-        if (Input.GetKeyDown(KeyCode.S)) {
-            TryStartingExhibition();
-        }
-
         if (state == ExhibitionState.Started)
         {
             timerInsideImage.fillAmount = exhibitionFrameCount / currentExhibitionTimeFrame;
@@ -188,62 +168,66 @@ public class Exhibition : MonoBehaviour
         if (UpgradeCost > Player.instance.Money)
             return;
 
-        level++;
         Player.instance.SpendMoney(Mathf.FloorToInt(UpgradeCost));
 
+        data.level++;
+
         upgradeMenuController.SetUpgradeCost(UpgradeType.Exhibition, UpgradeCost);
-        upgradeMenuController.SetStat(UpgradeType.Exhibition, level, CalculateIncome(level, CurrentMaximumVisitor));
-        print(CalculateIncome(level, CurrentMaximumVisitor));
+        upgradeMenuController.SetStat(UpgradeType.Exhibition, data.level, CalculateIncome(data.level, data.capacity));
     }
 
-    public void IncrementCurrentMaxVisitor()
+    public void IncrementCapacity()
     {
-        if(entryPathParent.childCount == CurrentMaximumVisitor)
+        if(entryPathParent.childCount == data.capacity)
         {
             Debug.LogError("Exhibition: IncrementMaxEntryVisitorCount, There is not enough entry queue points!");
             return;
         }
-        else if(CurrentMaximumVisitor == Constants.MaximumExhibitionVisitor)
+        else if(data.capacity == Constants.MaximumExhibitionCapacity)
         {
             Debug.LogError("Exhibition: IncrementMaxEntryVisitorCount, Reached maximum visitor number!");
             return;
         }
 
-        CurrentMaximumVisitor++;
+        carpetParent.GetChild(data.capacity).gameObject.SetActive(true);
         Player.instance.SpendMoney(Mathf.FloorToInt(CapacityCost));
 
-        upgradeMenuController.SetUpgradeCost(UpgradeType.Capacity, CurrentMaximumVisitor != Constants.MaximumExhibitionVisitor ? 2 : -1);
-        upgradeMenuController.SetStat(UpgradeType.Capacity, CurrentMaximumVisitor);
+        data.capacity++;
+
+        upgradeMenuController.SetUpgradeCost(UpgradeType.Capacity, data.capacity != Constants.MaximumExhibitionCapacity ? CapacityCost : -1);
+        upgradeMenuController.SetStat(UpgradeType.Capacity, data.capacity);
+
     }
 
     public void DecrementTime()
     {
-        if(exhibitionTime == minimumExhibitionTime)
+        if(data.time == minimumExhibitionTime)
         {
             Debug.LogError("Exhibition: DecrementTime, Reached minimum exhibition time!");
             return;
         }
 
-        exhibitionTime--; 
-        CalculateExhibitionValues();
         Player.instance.SpendMoney(Mathf.FloorToInt(TimeCost));
 
-        upgradeMenuController.SetUpgradeCost(UpgradeType.Time, exhibitionTime != minimumExhibitionTime ? 3 : -1);
-        upgradeMenuController.SetStat(UpgradeType.Time, exhibitionTime);
+        data.time--; 
+        CalculateExhibitionValues();
+
+        upgradeMenuController.SetUpgradeCost(UpgradeType.Time, data.time != minimumExhibitionTime ? TimeCost : -1);
+        upgradeMenuController.SetStat(UpgradeType.Time, data.time);
     }
 
 
     private float CalculateIncome(float desiredLevel, int desiredVisitorCount) => initialCost + (Mathf.Pow(coefficient, Mathf.Floor(desiredLevel / levelJumpInterval)) * desiredLevel / incomeDivider) * desiredVisitorCount;
 
-    private float CalculateCost(int desiredLevel)
+    private float CalculateUpgradeCost(int desiredLevel)
     {
         // Calculation of levels at the beginning and the end of the Jump
         float floorLevel = desiredLevel - (desiredLevel % levelJumpInterval);
         float ceilingLevel = desiredLevel + levelJumpInterval - (desiredLevel % levelJumpInterval) - 0.01f;
 
         // Costs at the beginning and the end of the Jump
-        float floor = CalculateIncome(floorLevel, Constants.MaximumExhibitionVisitor);
-        float ceiling = CalculateIncome(ceilingLevel, Constants.MaximumExhibitionVisitor);
+        float floor = CalculateIncome(floorLevel, Constants.MaximumExhibitionCapacity);
+        float ceiling = CalculateIncome(ceilingLevel, Constants.MaximumExhibitionCapacity);
         float gap = ceiling - floor;
 
         // gap / 3 is for narrowing the gap
@@ -258,13 +242,17 @@ public class Exhibition : MonoBehaviour
         return Mathf.Lerp(newFloor, newCeiling, (float)(desiredLevel % levelJumpInterval) / levelJumpInterval);
     }
 
+    private float CalculateCapacityCost(int desiredLevel) => initialCost * Mathf.Pow(2.25f, desiredLevel - 1);
+
+    private float CalculateTimeCost(int desiredLevel) => initialCost * Mathf.Pow(1.75f, desiredLevel - 1);
+
+
     public void OpenUpgradeMenu()
     {
         upgradeMenuCanvas.gameObject.SetActive(true);
     }
 
     #endregion
-
 
     #region Bounds
 
@@ -274,18 +262,24 @@ public class Exhibition : MonoBehaviour
 
     #endregion
 
+    #region Path
 
-    public void AddVisitorToEntryQueue(Visitor newVisitor)
-    {
-        if (entryQueue.Count == CurrentMaximumVisitor || entryQueue.Contains(newVisitor))
-            return;
+    public List<Transform> EntryPath => entryPath;
+    public Transform WaitingPoint => waitingPoint;
 
-        entryQueue.Enqueue(newVisitor);
-    }
+    private readonly List<Transform> entryPath = new();
+    private readonly List<Transform> insidePath = new();
+    private readonly Queue<Vector3> insidePathPositions = new();
+
+    private int exhibitionTimeFrame = 0;
+    private int exhibitionFrameCount = 0;
+    private float insidePathLength = 0;
+
+    private float currentExhibitionTimeFrame = 0f;
 
     private void CalculateExhibitionValues()
     {
-        exhibitionTimeFrame = (int)(exhibitionTime / Constants.fixedUpdateFrameInterval);
+        exhibitionTimeFrame = (int)(data.time / Constants.fixedUpdateFrameInterval);
 
         if (insidePathLength == 0)
         {
@@ -299,10 +293,15 @@ public class Exhibition : MonoBehaviour
         ExhibitionSpeed = insidePathLength / exhibitionTimeFrame;
     }
 
-    public int FirstEmptyEntryPathIndex => IsEntryQueueFilled ? -1 : entryQueue.Count;
+    #endregion
 
-    public Transform GetWaitingPoint() => waitingPoint;
+    public void AddVisitorToEntryQueue(Visitor newVisitor)
+    {
+        if (entryQueue.Count == data.capacity || entryQueue.Contains(newVisitor))
+            return;
 
+        entryQueue.Enqueue(newVisitor);
+    }
 
     private void FaceUIToCamera(Quaternion rotation) => worldCanvas.transform.rotation = rotation;
 
@@ -316,4 +315,10 @@ public class Exhibition : MonoBehaviour
         Signals.OnFaceCanvasToCamera -= FaceUIToCamera;
     }
 
+    public class Data
+    {
+        public int level;
+        public int capacity;
+        public int time;
+    }
 }

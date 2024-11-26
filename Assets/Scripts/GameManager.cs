@@ -6,32 +6,19 @@ using Utilities.Enums;
 
 public class GameManager : MonoBehaviour
 {
-    private IEnumerator timerNumerator;
+    private IEnumerator lastEnterTimerNumerator;
 
     public static GameState GameState { get; private set; } = GameState.Play;
 
-    private void Start()
+    
+
+    public void StartLastEnterTimer()
     {
-        StartCoroutine(timerNumerator = Timer());
+        if (lastEnterTimerNumerator != null) StopCoroutine(lastEnterTimerNumerator);
+        StartCoroutine(lastEnterTimerNumerator = LastEnterTimer());
     }
-
-    public IEnumerator Timer()
+    private IEnumerator LastEnterTimer()
     {
-        string lastEnter = Player.instance.LastEnter;
-
-        try
-        {
-            DateTime previousDate = DateTime.Parse(lastEnter);
-            Player.instance.Money += (float)(DateTime.UtcNow - previousDate).TotalSeconds / 1000;
-            print("Money+: " + ((float)(DateTime.UtcNow - previousDate).TotalSeconds / 1000));
-        }
-        catch
-        {
-            Debug.LogError("GameManager: Timer, previous date parsing error!");
-            timerNumerator = null;
-            yield break;
-        }
-
         WaitForSecondsRealtime waitTime = new WaitForSecondsRealtime(10);
         while (true)
         {

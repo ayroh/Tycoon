@@ -1,7 +1,11 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.IO;
+using Newtonsoft.Json;
 using UnityEngine;
+using Utilities.Constants;
+using Utilities.Enums;
 using Utilities.Signals;
 
 public class Player : Singleton<Player>
@@ -66,6 +70,50 @@ public class Player : Singleton<Player>
         Money -= amount;
         Signals.OnMoneyUpdated?.Invoke();
         return true;
+    }
+
+    #endregion
+
+    #region Exhibition
+
+    public void SaveExhibition(Exhibition.Data exhibitionData, ExhibitionType type)
+    {
+        try 
+        {
+            File.WriteAllText(Application.persistentDataPath + "/Exhibition" + type + ".json", JsonConvert.SerializeObject(exhibitionData));
+        }
+        catch
+        {
+            Debug.LogError("Player: SaveExhibition, catched an error while writing!");
+        }
+    }
+
+    public Exhibition.Data LoadExhibition(ExhibitionType type)
+    {
+        if(!File.Exists(Application.persistentDataPath + "/Exhibition" + type + ".json"))
+        {
+            Exhibition.Data newData = new Exhibition.Data()
+            {
+                level = 1,
+                capacity = Constants.InitialExhibitionCapacity,
+                time = Constants.InitialExhibitionTime
+            };
+
+            File.WriteAllText(Application.persistentDataPath + "/Exhibition" + type + ".json", JsonConvert.SerializeObject(newData));
+            return newData;
+        }
+
+        try
+        {
+            string text = File.ReadAllText(Application.persistentDataPath + "/Exhibition" + type + ".json");
+            Exhibition.Data exhibitionData = JsonConvert.DeserializeObject<Exhibition.Data>(text);
+            return exhibitionData;
+        }
+        catch
+        {
+            Debug.LogError("Player: SaveExhibition, catched an error while reading!");
+            return null;
+        }
     }
 
     #endregion
